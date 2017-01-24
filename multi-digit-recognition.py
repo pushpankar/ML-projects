@@ -31,7 +31,7 @@ print('Validation set', valid_dataset.shape, valid_labels.shape)
 print('Test set', test_dataset.shape, test_labels.shape)
 
 
-
+#synthesize images: merge 5 image to create 1 image
 def merge_images(dataset,labels,num_images):
     total_images = dataset.shape[0]
     random_pos = np.random.randint(total_images,size=num_images)
@@ -40,10 +40,7 @@ def merge_images(dataset,labels,num_images):
     concatanated_image = np.concatenate(xs, axis=1)
     return concatanated_image, ys
 
-def accuracy(predictions, labels):
-    return (100.0 * np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1))/ predictions.shape[0])
-
-
+#create a set of merged images
 def get_samples(num_samples):
     sample = []
     labels = []
@@ -53,10 +50,9 @@ def get_samples(num_samples):
         labels.append(label)
     return np.array(sample), np.array(labels)
 
-print(merge_images(train_dataset,train_labels,5)[1].shape)
-print(get_samples(70)[1].shape)
-print(get_samples(70)[0].shape)
-
+#check dimensions
+sample = get_samples(50)
+print(sample[0].shape, sample[1].shape)
 
 batch_size = 50
 patch_size = 5
@@ -64,13 +60,13 @@ depth = 64
 num_hidden = 128
 image_width = 140
 image_height = 28
-#lets build a graph
+
+
+#build a graph
 graph = tf.Graph()
 with graph.as_default():
     #placeholder for input data and labels
-
     tf_train_dataset = tf.placeholder(tf.float32, shape=(batch_size, image_height, image_width, num_channels))
-    #We have 5 lists of a batch of labels
     tf_train_labels = tf.placeholder(tf.float32, shape=(batch_size, 5, num_labels))
     tf_valid_dataset = tf.constant(valid_dataset)
     tf_test_dataset = tf.constant(test_dataset)
@@ -107,10 +103,11 @@ with graph.as_default():
         hidden4 = tf.nn.relu(tf.matmul(reshaped, layer4_W) + layer4_bias)
         return [tf.matmul(hidden4, layer5_W) + layer5_bias for layer5_W, layer5_bias in zip(layer5_Ws, layer5_biases)]
 
+    #A list of logits
     logits = model(tf_train_dataset)
-    print(logits[1])
-    loss_per_digit = [tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits[i],tf_train_labels[:,i,:])) for i in range(5)]
-    loss = sum(loss_per_digit)
+    
+    loss_per_digit = [tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits[i],tf_train_labels[:,i,:])) for i in xrange(5)]
+    loss = tf.add_n(loss_per_digit)
 
     #optimizer
     optimizer = tf.train.GradientDescentOptimizer(0.5).minimize(loss)
@@ -123,11 +120,11 @@ with tf.Session(graph=graph) as session:
     tf.global_variables_initializer().run()
     print('Initialized')
 
-    for step in range(5000):
+    for step in range(50):
         batch = get_samples(batch_size)
         feed_dict = { tf_train_dataset: batch[0],
                       tf_train_labels: batch[1]}
         _,l, predictions = session.run([optimizer, loss, train_prediction], feed_dict=feed_dict)
-        if (step % 500 == 0):
-            print('Minibatch loss at step{}: {}'.format(step,l))
+        
+        print('Minibatch loss at step{}: {}'.format(step,l))
     

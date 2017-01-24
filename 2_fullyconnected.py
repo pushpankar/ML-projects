@@ -49,12 +49,15 @@ y_ = tf.placeholder(tf.float32, shape=[None,10])
 W1 = tf.Variable(tf.truncated_normal([image_size*image_size,1024],stddev=0.1))
 b1 = tf.Variable(tf.constant(0.1,shape=[1024]))
 y1 = tf.matmul(x,W1) + b1
-
 h_fc1 = tf.nn.relu(y1)
 
-W = tf.Variable(tf.truncated_normal([1024, num_labels], stddev=0.1))
+W2 = tf.Variable(tf.truncated_normal([1024, 512], stddev=0.1))
+b2 = tf.Variable(tf.constant(0.1, shape=[512]))
+h_fc2 = tf.nn.relu(tf.matmul(h_fc1,W2) + b2)
+
+W = tf.Variable(tf.truncated_normal([512,  num_labels], stddev=0.1))
 b = tf.Variable(tf.constant(0.1, shape=[num_labels]))
-y = tf.nn.softmax(tf.matmul(h_fc1,W) + b)
+y = tf.nn.softmax(tf.matmul(h_fc2,W) + b)
 
 
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y,y_))
@@ -67,7 +70,7 @@ sess.run(tf.global_variables_initializer())
 
 batch_size = 128
 
-for i in range(3001):
+for i in range(6001):
     offset = (i * batch_size) % (train_labels.shape[0] - batch_size)
     # Generate a minibatch.
     batch_data = train_dataset[offset:(offset + batch_size), :]
