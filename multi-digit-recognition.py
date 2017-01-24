@@ -22,6 +22,10 @@ def reformat(dataset, labels):
     dataset = dataset.reshape((-1, image_size, image_size, num_channels)).astype(np.float32)
     return dataset, labels
 
+def accuracy(predictions, labels):
+    print(predictions.shape, labels.shape)
+    return (100.0 * np.sum(np.argmax(predictions, 2) == np.argmax(labels, 2))/ predictions.shape[0])
+
 train_dataset, train_labels = reformat(mnist.train.images, mnist.train.labels)
 valid_dataset, valid_labels = reformat(mnist.validation.images, mnist.validation.labels)
 test_dataset, test_labels = reformat(mnist.test.images, mnist.test.labels)
@@ -105,26 +109,28 @@ with graph.as_default():
 
     #A list of logits
     logits = model(tf_train_dataset)
-    
     loss_per_digit = [tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits[i],tf_train_labels[:,i,:])) for i in xrange(5)]
     loss = tf.add_n(loss_per_digit)
 
     #optimizer
-    optimizer = tf.train.GradientDescentOptimizer(0.5).minimize(loss)
+    optimizer = tf.train.AdamOptimizer(0.001).minimize(loss)
 
-    train_prediction = tf.nn.softmax(logits)
-    valid_prediction = tf.nn.softmax(model(tf_valid_dataset))
-    test_prediction  = tf.nn.softmax(model(tf_test_dataset))
+    train_prediction = tf.transpose(tf.nn.softmax(logits), [1,0,2])
+    valid_prediction = tf.transpose(tf.nn.softmax(model(tf_valid_dataset)), [1,0,2])
+    print("Train logits are {} and label {}".format(train_prediction.get_shape().as_list(), tf_train_labels.get_shape().as_list()))
+    print("Validation logits are {}".format(valid_prediction.get_shape().as_list()))
+    test_prediction  = tf.transpose(tf.nn.softmax(model(tf_test_dataset)), [1,0,2])
 
 with tf.Session(graph=graph) as session:
     tf.global_variables_initializer().run()
     print('Initialized')
 
-    for step in range(50):
+    for step in range(1001):
         batch = get_samples(batch_size)
         feed_dict = { tf_train_dataset: batch[0],
                       tf_train_labels: batch[1]}
         _,l, predictions = session.run([optimizer, loss, train_prediction], feed_dict=feed_dict)
-        
-        print('Minibatch loss at step{}: {}'.format(step,l))
+        if step % 100 == 0:
+            print('Minibatch accuracy at step {} : {}'.format(step, accuracy(predictions,  batch[1])))
+            print('Minibatch loss at step{}: {}'.format(step,l))
     
