@@ -23,17 +23,11 @@ def reformat(dataset, labels):
     return dataset, labels
 
 def accuracy(predictions, labels):
-    print(predictions.shape, labels.shape)
-    return (100.0 * np.sum(np.argmax(predictions, 2) == np.argmax(labels, 2))/ predictions.shape[0])
+    return (100.0 * np.sum(np.argmax(predictions, 2) == np.argmax(labels, 2))/ predictions.shape[0])/5
 
 train_dataset, train_labels = reformat(mnist.train.images, mnist.train.labels)
 valid_dataset, valid_labels = reformat(mnist.validation.images, mnist.validation.labels)
 test_dataset, test_labels = reformat(mnist.test.images, mnist.test.labels)
-
-print('Training set', train_dataset.shape, train_labels.shape)
-print('Validation set', valid_dataset.shape, valid_labels.shape)
-print('Test set', test_dataset.shape, test_labels.shape)
-
 
 #synthesize images: merge 5 image to create 1 image
 def merge_images(dataset,labels,num_images):
@@ -54,14 +48,39 @@ def get_samples(num_samples):
         labels.append(label)
     return np.array(sample), np.array(labels)
 
+def create_validation_and_test():
+    sample_valid_list = []
+    labels_valid_list = []
+    sample_test_list = []
+    labels_test_list = []
+    for i in xrange(250):
+        merged_data_valid, merged_label_valid = merge_images(valid_dataset, valid_labels,5)
+        merged_data_test, merged_label_test  = merge_images(test_dataset, test_labels,5)
+        sample_valid_list.append(merged_data_valid)
+        labels_valid_list.append(merged_label_valid)
+        sample_test_list.append(merged_data_test)
+        labels_test_list.append(merged_label_test)
+
+    new_valid_dataset = np.array(sample_valid_list)
+    new_valid_labels = np.array(labels_valid_list)
+    new_test_dataset = np.array(sample_test_list)
+    new_test_labels = np.array(labels_test_list)
+    return (new_valid_dataset, new_valid_labels, new_test_dataset, new_test_labels)
+        
+valid_dataset, valid_labels, test_dataset, test_labels = create_validation_and_test()
+print('Training set', train_dataset.shape, train_labels.shape)
+print('Validation set', valid_dataset.shape, valid_labels.shape)
+print('Test set', test_dataset.shape, test_labels.shape)
+
+
 #check dimensions
 sample = get_samples(50)
 print(sample[0].shape, sample[1].shape)
 
 batch_size = 50
 patch_size = 5
-depth = 64
-num_hidden = 128
+depth = 128
+num_hidden = 512
 image_width = 140
 image_height = 28
 
@@ -90,7 +109,7 @@ with graph.as_default():
     layer3_bias = bias_variable([depth])
 
     #Fully connected layers
-    layer4_W = weight_variable([4608, num_hidden])
+    layer4_W = weight_variable([9216, num_hidden])
     layer4_bias = bias_variable([num_hidden])
 
     layer5_Ws = [weight_variable([num_hidden, num_labels]) for _ in xrange(5)]
@@ -99,7 +118,7 @@ with graph.as_default():
 
     #Model
     def model(data):
-        conv1 = tf.nn.relu(tf.nn.conv2d(tf_train_dataset, layer1_W, [1,2,2,1], padding='SAME') + layer1_bias)
+        conv1 = tf.nn.relu(tf.nn.conv2d(data, layer1_W, [1,2,2,1], padding='SAME') + layer1_bias)
         conv2 = tf.nn.relu(tf.nn.conv2d(conv1, layer2_W, [1,2,2,1], padding='SAME') + layer2_bias)
         conv3 = tf.nn.relu(tf.nn.conv2d(conv2, layer3_W, [1,2,2,1], padding='SAME') + layer3_bias)
         shape = conv3.get_shape().as_list()
@@ -117,20 +136,20 @@ with graph.as_default():
 
     train_prediction = tf.transpose(tf.nn.softmax(logits), [1,0,2])
     valid_prediction = tf.transpose(tf.nn.softmax(model(tf_valid_dataset)), [1,0,2])
-    print("Train logits are {} and label {}".format(train_prediction.get_shape().as_list(), tf_train_labels.get_shape().as_list()))
-    print("Validation logits are {}".format(valid_prediction.get_shape().as_list()))
     test_prediction  = tf.transpose(tf.nn.softmax(model(tf_test_dataset)), [1,0,2])
 
 with tf.Session(graph=graph) as session:
     tf.global_variables_initializer().run()
     print('Initialized')
 
-    for step in range(1001):
+    for step in range(1501):
         batch = get_samples(batch_size)
         feed_dict = { tf_train_dataset: batch[0],
                       tf_train_labels: batch[1]}
         _,l, predictions = session.run([optimizer, loss, train_prediction], feed_dict=feed_dict)
         if step % 100 == 0:
             print('Minibatch accuracy at step {} : {}'.format(step, accuracy(predictions,  batch[1])))
-            print('Minibatch loss at step{}: {}'.format(step,l))
-    
+            #print('Minibatch loss at step{}: {}'.format(step,l))
+            print('Validation accuracy at step {}: {}'.format(step, accuracy(valid_prediction.eval(), valid_labels))) 
+
+    print('Test accuracy is {}'.format(accuracy(test_prediction.eval(), test_labels)))
