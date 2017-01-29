@@ -16,7 +16,7 @@ def conv2d(x,W):
 
 image_size = 28
 num_channels = 1
-num_labels = 10
+num_labels = 11
 
 def reformat(dataset, labels):
     dataset = dataset.reshape((-1, image_size, image_size, num_channels)).astype(np.float32)
@@ -35,6 +35,18 @@ def merge_images(dataset,labels,num_images):
     random_pos = np.random.randint(total_images,size=num_images)
     xs = dataset[random_pos]
     ys = labels[random_pos]
+    ys = np.append(ys, np.zeros((num_images,1)), axis=1)
+
+    #create random image
+    replace_count = np.random.randint(3)
+    for _ in range(replace_count):
+        if np.random.randint(10) < 3:
+            blank_pos = np.random.randint(0,4)
+            xs[blank_pos] = np.zeros((28,28,1),dtype=np.float32)
+            ys = np.delete(ys, (blank_pos), axis=0)
+            ys = np.append(ys,np.zeros((1,11)),axis=0)
+            ys[num_images-1][10] = 1
+        
     concatanated_image = np.concatenate(xs, axis=1)
     return concatanated_image, ys
 
@@ -142,7 +154,7 @@ with tf.Session(graph=graph) as session:
     tf.global_variables_initializer().run()
     print('Initialized')
 
-    for step in range(1501):
+    for step in range(3001):
         batch = get_samples(batch_size)
         feed_dict = { tf_train_dataset: batch[0],
                       tf_train_labels: batch[1]}
