@@ -37,12 +37,12 @@ def merge_images(dataset,labels,num_images):
     ys = labels[random_pos]
     ys = np.append(ys, np.zeros((num_images,1)), axis=1)
 
-    #create random image
+    #insert random number of blank spaces 
     replace_count = np.random.randint(3)
     for _ in range(replace_count):
         if np.random.randint(10) < 3:
             blank_pos = np.random.randint(0,4)
-            xs[blank_pos] = np.zeros((28,28,1),dtype=np.float32)
+            xs[blank_pos] = np.random.randint(0,255,size=(28,28,1)).astype(np.float32)
             ys = np.delete(ys, (blank_pos), axis=0)
             ys = np.append(ys,np.zeros((1,11)),axis=0)
             ys[num_images-1][10] = 1
@@ -154,7 +154,7 @@ with tf.Session(graph=graph) as session:
     tf.global_variables_initializer().run()
     print('Initialized')
 
-    for step in range(3001):
+    for step in range(9001):
         batch = get_samples(batch_size)
         feed_dict = { tf_train_dataset: batch[0],
                       tf_train_labels: batch[1]}
