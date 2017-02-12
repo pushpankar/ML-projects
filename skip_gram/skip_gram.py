@@ -44,7 +44,7 @@ with graph.as_default():
     # Variables
     embedding = tf.Variable(tf.random_uniform([vocabulary_size, embedding_size], -1.0, 1.0))
     softmax_weights = tf.Variable(
-        tf.truncated_normat([vocabulary_size, embedding_size], stddev=1.0 / math.sqrt(embedding_size)))
+        tf.truncated_normal([vocabulary_size, embedding_size], stddev=1.0 / math.sqrt(embedding_size)))
     softmax_bias = tf.Variable(tf.zeros([vocabulary_size]))
 
     # Model
@@ -56,24 +56,24 @@ with graph.as_default():
     # Optimizer
     optimizer = tf.train.AdagradOptimizer(1.0).minimize(loss)
 
-    norm = tf.sqrt(tf.reduce_sum(tf.square(tf.embeddings), 1, keep_dims=True))
+    norm = tf.sqrt(tf.reduce_sum(tf.square(embedding), 1, keep_dims=True))
     normalized_embeddings = embedding / norm
     valid_embedding = tf.nn.embedding_lookup(
         normalized_embeddings, valid_dataset)
-    similarity = tf.matmul(valid_embeddings, tf.transpose(normalized_embeddings))
+    similarity = tf.matmul(valid_embedding, tf.transpose(normalized_embeddings))
 
 num_steps = 100001
 
 with tf.Session(graph=graph) as session:
-    tf.global_variable_initializer()
+    tf.global_variables_initializer().run()
     print('Initialized')
 
     average_loss = 0
     for step in range(num_steps):
-        batch_data, batch_label = generate_batch(batch_size, num_steps, skip_window)
+        batch_data, batch_label = generate_batch(batch_size, num_skips, skip_window)
         feed_dict = {
             train_dataset: batch_data,
-            train_labels : batch_label
+            train_labels: batch_label
         }
         _, l = session.run([optimizer, loss], feed_dict=feed_dict)
         average_loss += l
@@ -85,7 +85,7 @@ with tf.Session(graph=graph) as session:
             sim = similarity.eval()
             for i in range(valid_size):
                 valid_word = reverse_dictionary[valid_examples[i]]
-                top_k = 8 # number of nearest neighbours
+                top_k = 8  # number of nearest neighbours
                 nearest = (-sim[i, :]).argsort()[1:top_k+1]
                 log = 'Nearest to %s:' % valid_word
                 for k in range(top_k):
